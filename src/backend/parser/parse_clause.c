@@ -1798,7 +1798,7 @@ transformLimitClause(ParseState *pstate, Node *clause,
  */
 Node *
 transformPercentClause(ParseState *pstate, Node *clause, Node *limitOffset, Node *limitCount,
-								 ParseExprKind exprKind, const char *constructName)
+								 ParseExprKind exprKind)
 {
 	Node	   *percentClause;
 
@@ -1811,8 +1811,6 @@ transformPercentClause(ParseState *pstate, Node *clause, Node *limitOffset, Node
 				 errmsg("PERCENT clause and LIMIT clause can not use together")));
 
 	percentClause = transformExpr(pstate, clause, exprKind);
-
-	percentClause = coerce_to_specific_type(pstate, percentClause, INT8OID, constructName);
 
 	return percentClause;
 }

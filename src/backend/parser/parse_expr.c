@@ -87,6 +87,7 @@ static Expr *make_distinct_op(ParseState *pstate, List *opname,
 							  Node *ltree, Node *rtree, int location);
 static Node *make_nulltest_from_distinct(ParseState *pstate,
 										 A_Expr *distincta, Node *arg);
+static Node *transformPercentExpr(ParseState *pstate, PercentClause *pcls);
 
 
 /*
@@ -290,7 +291,7 @@ transformExprRecurse(ParseState *pstate, Node *expr)
 			break;
 
 		case T_PercentClause:
-			result = transformExprRecurse(pstate, ((PercentClause *)expr)->expr);
+			result = transformPercentExpr(pstate, (PercentClause *) expr);
 			break;
 
 			/*
@@ -461,6 +462,30 @@ transformIndirection(ParseState *pstate, A_Indirection *ind)
 	return result;
 }
 
+static Node *
+transformPercentExpr(ParseState *pstate, PercentClause *pcls)
+{
+	Node	   *node;
+	PercentExpr	   *percent = makeNode(PercentExpr);
+	A_Const *n = makeNode(A_Const);
+
+	/* Construct percent */
+	n->val.ival.type = T_Integer;
+	n->val.ival.ival = 100;
+	n->location = pcls->location;
+
+	pcls->expr = (Node *)makeSimpleA_Expr(AEXPR_OP,
+								  "/",
+								  pcls->expr,
+								  (Node *)n, pcls->location); 
+
+	node = transformExprRecurse(pstate, pcls->expr);
+
+	percent->expr = node;
+
+	return (Node *)percent;
+}
+
 /*
  * Transform a ColumnRef.
  *
@@ -536,6 +561,7 @@ transformColumnRef(ParseState *pstate, ColumnRef *cref)
 		case EXPR_KIND_GENERATED_COLUMN:
 		case EXPR_KIND_CYCLE_MARK:
 		case EXPR_KIND_VARIABLE_DEFAULT:
+		case EXPR_KIND_PERCENT:
 
 			/* okay */
 			break;
@@ -1848,6 +1874,7 @@ transformSubLink(ParseState *pstate, SubLink *sublink)
 		case EXPR_KIND_VALUES:
 		case EXPR_KIND_VALUES_SINGLE:
 		case EXPR_KIND_CYCLE_MARK:
+		case EXPR_KIND_PERCENT:
 			/* okay */
 			break;
 		case EXPR_KIND_CHECK_CONSTRAINT:
@@ -3225,6 +3252,8 @@ ParseExprKindName(ParseExprKind exprKind)
 			return "GENERATED AS";
 		case EXPR_KIND_CYCLE_MARK:
 			return "CYCLE";
+		case EXPR_KIND_PERCENT:
+			return "PERCENT";
 
 			/*
 			 * There is intentionally no default: case here, so that the

@@ -201,7 +201,10 @@ typedef enum NodeTag
 	T_FromExpr,
 	T_OnConflictExpr,
 	T_IntoClause,
+
+	/* Percent node */
 	T_PercentClause,
+	T_PercentExpr,
 
 	/*
 	 * TAGS FOR EXPRESSION STATE NODES (execnodes.h)

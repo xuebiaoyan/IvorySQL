@@ -2259,6 +2259,12 @@ typedef struct PercentClause
 	int		   location;
 } PercentClause;
 
+typedef struct PercentExpr
+{
+	NodeTag		type;
+	Node	   *expr;
+} PercentExpr;
+
 /* ----------------------
  *		Create Table Statement
  *

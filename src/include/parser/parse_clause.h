@@ -26,7 +26,7 @@ extern Node *transformLimitClause(ParseState *pstate, Node *clause,
 								  ParseExprKind exprKind, const char *constructName,
 								  LimitOption limitOption);
 extern Node *transformPercentClause(ParseState *pstate, Node *clause, Node *limitOffset, Node *limitCount,
-								 ParseExprKind exprKind, const char *constructName);
+								 ParseExprKind exprKind);
 extern List *transformGroupClause(ParseState *pstate, List *grouplist,
 								  List **groupingSets,
 								  List **targetlist, List *sortClause,

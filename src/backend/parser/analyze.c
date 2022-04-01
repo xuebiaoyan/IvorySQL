@@ -1349,8 +1349,7 @@ transformSelectStmt(ParseState *pstate, SelectStmt *stmt)
 												stmt->percentClause,
 												stmt->limitOffset,
 												stmt->limitCount,
-												EXPR_KIND_PERCENT,
-												"PERCENT");
+												EXPR_KIND_PERCENT);
 
 	/* transform LIMIT */
 	qry->limitOffset = transformLimitClause(pstate, stmt->limitOffset,
