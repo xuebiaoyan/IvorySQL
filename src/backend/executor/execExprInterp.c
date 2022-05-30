@@ -427,6 +427,7 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 		&&CASE_EEOP_ASSIGN_TMP,
 		&&CASE_EEOP_ASSIGN_TMP_MAKE_RO,
 		&&CASE_EEOP_CONST,
+		&&CASE_EEOP_ROWNUM,
 		&&CASE_EEOP_FUNCEXPR,
 		&&CASE_EEOP_FUNCEXPR_STRICT,
 		&&CASE_EEOP_FUNCEXPR_FUSAGE,
@@ -714,6 +715,14 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 			EEO_NEXT();
 		}
 
+		EEO_CASE(EEOP_ROWNUM)
+		{
+			*op->resvalue = *op->d.rowval.value;
+			*op->resnull = false;
+
+			EEO_NEXT();
+		}
+
 		/*
 		 * Function-call implementations. Arguments have previously been
 		 * evaluated directly into fcinfo->args.
@@ -758,6 +767,11 @@ ExecInterpExpr(ExprState *state, ExprContext *econtext, bool *isnull)
 					goto strictfail;
 				}
 			}
+
+			/* Set rownum value in where condition */
+			if (fcinfo->flinfo->fn_oid == ROWNUM_FUNCTION)
+				fcinfo->flinfo->fn_extra = &op->d.rowval.value;
+
 			fcinfo->isnull = false;
 			d = op->d.func.fn_addr(fcinfo);
 			*op->resvalue = d;

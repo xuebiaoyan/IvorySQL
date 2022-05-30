@@ -256,6 +256,8 @@ ExecProcNode(PlanState *node)
 	if (node->chgParam != NULL) /* something changed? */
 		ExecReScan(node);		/* let ReScan handle this */
 
+	node->rownum++;
+
 	return node->ExecProcNode(node);
 }
 #endif

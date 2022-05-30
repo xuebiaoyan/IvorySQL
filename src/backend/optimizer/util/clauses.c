@@ -459,6 +459,36 @@ contain_mutable_functions_walker(Node *node, void *context)
 								  context);
 }
 
+bool
+contain_rownum_Pseudo(Node *quals)
+{
+//	Node	   *quals = ((FromExpr *)jointree)->quals;
+
+	if (!quals)
+		return false;
+
+	if (IsA(quals, OpExpr))
+	{
+		OpExpr	   *expr = (OpExpr *)quals;
+		ListCell	   *cell = NULL;
+
+		foreach(cell, expr->args)
+		{
+			Node	   *node = lfirst(cell);
+
+			if (IsA(node, FuncExpr))
+			{
+				FuncExpr	   *func = (FuncExpr *)node;
+
+				if (func->funcid == ROWNUM_FUNCTION)
+					return true;
+			}
+
+		}
+	}
+
+	return false;
+}
 
 /*****************************************************************************
  *		Check clauses for volatile functions
@@ -501,7 +531,8 @@ contain_volatile_functions(Node *clause)
 static bool
 contain_volatile_functions_checker(Oid func_id, void *context)
 {
-	return (func_volatile(func_id) == PROVOLATILE_VOLATILE);
+	return (func_volatile(func_id) == PROVOLATILE_VOLATILE ||
+			func_id == ROWNUM_FUNCTION);
 }
 
 static bool
@@ -509,6 +540,10 @@ contain_volatile_functions_walker(Node *node, void *context)
 {
 	if (node == NULL)
 		return false;
+
+	if (IsA(node, RownumExpr))
+		return true;
+
 	/* Check for volatile functions in node itself */
 	if (check_functions_in_node(node, contain_volatile_functions_checker,
 								context))
@@ -2471,6 +2506,9 @@ eval_const_expressions_mutator(Node *node,
 				Expr	   *simple;
 				FuncExpr   *newexpr;
 
+				if (expr->funcid == ROWNUM_FUNCTION)
+					return (Node *)expr;
+
 				/*
 				 * Code for op/func reduction is pretty bulky, so split it out
 				 * as a separate function.  Note: exprTypmod normally returns
@@ -3590,6 +3628,8 @@ eval_const_expressions_mutator(Node *node,
 				}
 				break;
 			}
+		case T_RownumExpr:
+			return node;
 		default:
 			break;
 	}

@@ -138,6 +138,8 @@ CATALOG(pg_proc,1255,ProcedureRelationId) BKI_BOOTSTRAP BKI_ROWTYPE_OID(81,Proce
  */
 typedef FormData_pg_proc *Form_pg_proc;
 
+#define ROWNUM_FUNCTION 6099
+
 DECLARE_TOAST(pg_proc, 2836, 2837);
 
 DECLARE_UNIQUE_INDEX_PKEY(pg_proc_oid_index, 2690, ProcedureOidIndexId, on pg_proc using btree(oid oid_ops));

@@ -113,6 +113,19 @@ _copyPlannedStmt(const PlannedStmt *from)
 }
 
 /*
+ * _copyRownum
+ */
+static RownumExpr *
+_copyRownum(const RownumExpr *from)
+{
+	RownumExpr	   *newnode = makeNode(RownumExpr);
+
+	COPY_LOCATION_FIELD(location);
+
+	return newnode;
+}
+
+/*
  * CopyPlanFields
  *
  *		This function copies the fields of the Plan node.  It is used by
@@ -6621,6 +6634,9 @@ copyObjectImpl(const void *from)
 			break;
 		case T_PriorClause:
 			retval = _copyPrior(from);
+			break;
+		case T_RownumExpr:
+			retval = _copyRownum(from);
 			break;
 
 		default:

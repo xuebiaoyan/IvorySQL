@@ -535,3 +535,11 @@ window_nth_value(PG_FUNCTION_ARGS)
 
 	PG_RETURN_DATUM(result);
 }
+
+Datum
+rownum(PG_FUNCTION_ARGS)
+{
+	int64 rownum = (int *)fcinfo->flinfo->fn_extra;
+
+	PG_RETURN_INT64(rownum);
+}

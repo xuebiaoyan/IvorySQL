@@ -41,6 +41,11 @@ typedef enum NodeTag
 	T_TupleTableSlot,
 
 	/*
+	 * TAGS FOR ROWNUM
+	 */
+	T_RownumExpr,
+
+	/*
 	 * TAGS FOR PLAN NODES (plannodes.h)
 	 */
 	T_Plan,

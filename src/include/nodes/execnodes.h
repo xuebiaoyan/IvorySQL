@@ -1081,6 +1081,7 @@ typedef struct PlanState
 	bool		outeropsset;
 	bool		inneropsset;
 	bool		resultopsset;
+	int64		rownum;
 } PlanState;
 
 /* ----------------

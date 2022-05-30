@@ -11886,4 +11886,9 @@
   prorettype => 'bytea', proargtypes => 'pg_brin_minmax_multi_summary',
   prosrc => 'brin_minmax_multi_summary_send' },
 
+#rownum in where condition
+{ oid => '6099', descr => 'rownum in where condition',
+  proname => 'rownum', prorettype => 'int8', proargtypes => 'int8',
+  prosrc => 'rownum' },
+
 ]

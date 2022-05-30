@@ -55,4 +55,6 @@ extern Query *inline_set_returning_function(PlannerInfo *root,
 
 extern Bitmapset *pull_paramids(Expr *expr);
 
+extern bool contain_rownum_Pseudo(Node *jointree);
+
 #endif							/* CLAUSES_H */

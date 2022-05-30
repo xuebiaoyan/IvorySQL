@@ -875,7 +875,7 @@ static void check_pkgname(List *pkgname, char *end_name, core_yyscan_t yyscanner
 	RANGE READ REAL REASSIGN RECHECK RECORD RECURSIVE REF REFERENCES REFERENCING
 	REFRESH REINDEX RELATIVE_P RELEASE RENAME REPEATABLE REPLACE REPLICA
 	RESET RESTART RESTRICT RETURN RETURNING RETURNS REVOKE RIGHT ROLE ROLLBACK ROLLUP
-	ROUTINE ROUTINES ROW ROWS RULE
+	ROUTINE ROUTINES ROW ROWNUM ROWS RULE
 
 	SAVEPOINT SCALAR SCHEMA SCHEMAS SCROLL SEARCH SECOND_P SECURITY SELECT
 	SEQUENCE SEQUENCES SERIALIZABLE SERVER SESSION SESSION_USER SET SETS SETOF
@@ -15593,7 +15593,13 @@ c_expr:		columnref								{ $$ = $1; }
 				  g->location = @1;
 				  $$ = (Node *)g;
 			  }
+			| ROWNUM
+				{
+					RownumExpr	   *n = makeNode(RownumExpr);
+					n->location = @1;
 
+					$$ = (Node *)n;
+				}
 		;
 
 func_application: func_name '(' ')'
@@ -18489,6 +18495,7 @@ reserved_keyword:
 			| PRIOR
 			| REFERENCES
 			| RETURNING
+			| ROWNUM
 			| SELECT
 			| SESSION_USER
 			| SOME
@@ -18863,6 +18870,7 @@ bare_label_keyword:
 			| ROUTINE
 			| ROUTINES
 			| ROW
+			| ROWNUM
 			| ROWS
 			| ROWTYPE_P
 			| RULE

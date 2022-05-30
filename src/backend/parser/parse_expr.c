@@ -27,6 +27,7 @@
 #include "nodes/nodeFuncs.h"
 #include "optimizer/optimizer.h"
 #include "parser/analyze.h"
+#include "parser/parser.h"
 #include "parser/parse_agg.h"
 #include "parser/parse_clause.h"
 #include "parser/parse_coerce.h"
@@ -105,6 +106,8 @@ static Expr *make_distinct_op(ParseState *pstate, List *opname,
 							  Node *ltree, Node *rtree, int location);
 static Node *make_nulltest_from_distinct(ParseState *pstate,
 										 A_Expr *distincta, Node *arg);
+static Node *transformRownumExpr(ParseState *pstate, RownumExpr *expr);
+
 
 
 /*
@@ -389,6 +392,11 @@ transformExprRecurse(ParseState *pstate, Node *expr)
 			result = transformJsonSerializeExpr(pstate, (JsonSerializeExpr *) expr);
 			break;
 
+		case T_RownumExpr:
+			result = transformRownumExpr(pstate, (RownumExpr *)expr);
+//			result = expr;
+			break;
+
 		default:
 			/* should not reach here */
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(expr));
@@ -516,6 +524,37 @@ transformIndirection(ParseState *pstate, A_Indirection *ind)
 													   false);
 
 	return result;
+}
+
+/*
+ * Transform a rownum.
+ *
+ * Here to build rownum(1) in where condition, others not to
+ * change.
+ */
+static Node *
+transformRownumExpr(ParseState *pstate, RownumExpr *expr)
+{
+	if (pstate->p_expr_kind == EXPR_KIND_WHERE)
+	{
+		A_Const *n = makeNode(A_Const);
+		Node *func = NULL;
+
+		n->val.ival.type = T_Integer;
+		n->val.ival.ival = 1;
+		n->location = expr->location;
+
+		func = (Node *) makeFuncCall(SystemFuncName("rownum"),
+									   list_make1(n),
+									   COERCE_SQL_SYNTAX,
+									   expr->location);
+
+		return transformExprRecurse(pstate, func);
+	}
+	else
+	{
+		return (Node *)expr;
+	}
 }
 
 /*

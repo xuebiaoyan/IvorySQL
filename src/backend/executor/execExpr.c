@@ -32,6 +32,7 @@
 
 #include "access/nbtree.h"
 #include "catalog/objectaccess.h"
+#include "catalog/pg_proc.h"
 #include "catalog/pg_type.h"
 #include "executor/execExpr.h"
 #include "executor/nodeSubplan.h"
@@ -981,6 +982,15 @@ ExecInitExprRec(Expr *node, ExprState *state,
 				break;
 			}
 
+		case T_RownumExpr:
+			{
+				scratch.opcode = EEOP_ROWNUM;
+				scratch.d.rowval.value = &state->parent->rownum;
+
+				ExprEvalPushStep(state, &scratch);
+				break;
+			}
+
 		case T_Param:
 			{
 				Param	   *param = (Param *) node;
@@ -1132,6 +1142,15 @@ ExecInitExprRec(Expr *node, ExprState *state,
 		case T_FuncExpr:
 			{
 				FuncExpr   *func = (FuncExpr *) node;
+
+				if (func->funcid == ROWNUM_FUNCTION)
+				{
+					scratch.opcode = EEOP_ROWNUM;
+					scratch.d.rowval.value = &state->parent->rownum;
+
+					ExprEvalPushStep(state, &scratch);
+					break;
+				}
 
 				ExecInitFunc(&scratch, node,
 							 func->args, func->funcid, func->inputcollid,

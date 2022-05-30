@@ -8682,7 +8682,13 @@ get_rule_expr(Node *node, deparse_context *context,
 			break;
 
 		case T_FuncExpr:
-			get_func_expr((FuncExpr *) node, context, showimplicit);
+			{
+				FuncExpr	   *func = (FuncExpr *)node;
+				if (func->funcid == ROWNUM_FUNCTION)
+					appendStringInfo(buf, "ROWNUM");
+				else
+					get_func_expr(func, context, showimplicit);
+			}
 			break;
 
 		case T_NamedArgExpr:
@@ -9837,6 +9843,9 @@ get_rule_expr(Node *node, deparse_context *context,
 
 		case T_FunctionParameter:
 			get_function_arguments((FunctionParameter *) node, context);
+			break;
+		case T_RownumExpr:
+			appendStringInfoString(buf, "ROWNUM");
 			break;
 
 		default:

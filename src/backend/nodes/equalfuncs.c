@@ -110,6 +110,17 @@ _equalAlias(const Alias *a, const Alias *b)
 	return true;
 }
 
+/*
+ * _equalRownum
+ */
+static bool
+_equalRownum(const RownumExpr *a, const RownumExpr *b)
+{
+	COMPARE_LOCATION_FIELD(location);
+
+	return true;
+}
+
 static bool
 _equalRangeVar(const RangeVar *a, const RangeVar *b)
 {
@@ -4426,6 +4437,9 @@ equal(const void *a, const void *b)
 			break;
 		case T_JsonTableColumn:
 			retval = _equalJsonTableColumn(a, b);
+			break;
+		case T_RownumExpr:
+			retval = _equalRownum(a, b);
 			break;
 
 		default:

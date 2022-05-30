@@ -15,6 +15,7 @@
 #include "postgres.h"
 
 #include "catalog/pg_collation.h"
+#include "catalog/pg_proc.h"
 #include "catalog/pg_type.h"
 #include "miscadmin.h"
 #include "nodes/execnodes.h"
@@ -268,6 +269,9 @@ exprType(const Node *expr)
 			break;
 		case T_JsonCoercion:
 			type = exprType(((const JsonCoercion *) expr)->expr);
+			break;
+		case T_RownumExpr:
+			type = INT8OID;
 			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(expr));
@@ -1016,6 +1020,9 @@ exprCollation(const Node *expr)
 					coll = InvalidOid;
 			}
 			break;
+		case T_RownumExpr:
+			coll = InvalidOid;
+			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(expr));
 			coll = InvalidOid;	/* keep compiler quiet */
@@ -1259,6 +1266,10 @@ exprSetCollation(Node *expr, Oid collation)
 				else
 					Assert(!OidIsValid(collation));
 			}
+			break;
+		case T_RownumExpr:
+			/* RownumExpr's result is boolean ... */
+			Assert(!OidIsValid(collation));
 			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(expr));
@@ -1862,11 +1873,26 @@ check_functions_in_node(Node *node, check_function_callback checker,
 		case T_NullIfExpr:		/* struct-equivalent to OpExpr */
 			{
 				OpExpr	   *expr = (OpExpr *) node;
+				ListCell	   *cell = NULL;
 
 				/* Set opfuncid if it wasn't set already */
 				set_opfuncid(expr);
 				if (checker(expr->opfuncid, context))
 					return true;
+
+				/* Rownum is volatile */
+				foreach(cell, expr->args)
+				{
+					Node	   *n1 = lfirst(cell);
+
+					if (IsA(n1, FuncExpr))
+					{
+						FuncExpr   *n2 = (FuncExpr *) n1;
+
+						if (n2->funcid == ROWNUM_FUNCTION)
+							return true;
+					}
+				}
 			}
 			break;
 		case T_ScalarArrayOpExpr:
@@ -2542,6 +2568,8 @@ expression_tree_walker(Node *node,
 					return true;
 			}
 			break;
+		case T_RownumExpr:
+			return true;
 		default:
 			elog(ERROR, "unrecognized node type: %d",
 				 (int) nodeTag(node));
@@ -3614,6 +3642,8 @@ expression_tree_mutator(Node *node,
 				return (Node *) newnode;
 			}
 			break;
+		case T_RownumExpr:
+			return (Node *)copyObject(node);
 		default:
 			elog(ERROR, "unrecognized node type: %d",
 				 (int) nodeTag(node));

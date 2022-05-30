@@ -1289,6 +1289,22 @@ check_ungrouped_columns_walker(Node *node,
 		IsA(node, Param))
 		return false;			/* constants are always acceptable */
 
+	if (IsA(node, RownumExpr))
+	{
+		foreach(gl, context->groupClauses)
+		{
+			TargetEntry *tle = lfirst(gl);
+
+			if (equal(node, tle->expr))
+				return false;	/* acceptable, do not descend more */
+		}
+
+		ereport(ERROR,
+				(errcode(ERRCODE_GROUPING_ERROR),
+				 errmsg("column \"ROWNUM\" must appear in the GROUP BY clause"),
+				 parser_errposition(context->pstate, ((RownumExpr *)node)->location)));
+	}
+
 	if (IsA(node, Aggref))
 	{
 		Aggref	   *agg = (Aggref *) node;

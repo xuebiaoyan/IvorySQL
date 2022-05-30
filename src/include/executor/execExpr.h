@@ -102,6 +102,9 @@ typedef enum ExprEvalOp
 	/* evaluate Const value */
 	EEOP_CONST,
 
+	/* evaluate rownum value */
+	EEOP_ROWNUM,
+
 	/*
 	 * Evaluate function call (including OpExprs etc).  For speed, we
 	 * distinguish in the opcode whether the function is strict and/or
@@ -340,6 +343,12 @@ typedef struct ExprEvalStep
 			Datum		value;
 			bool		isnull;
 		}			constval;
+
+		/* for EEOP_ROWNUM */
+		struct
+		{
+			int64		*value;
+		} rowval;
 
 		/* for EEOP_FUNCEXPR_* / NULLIF / DISTINCT */
 		struct

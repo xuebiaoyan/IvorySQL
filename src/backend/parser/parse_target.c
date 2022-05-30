@@ -2004,6 +2004,9 @@ FigureColnameInternal(Node *node, char **name)
 					return 2;
 			}
 			break;
+		case T_RownumExpr:
+			*name = "rownum";
+			return 2;
 		default:
 			break;
 	}

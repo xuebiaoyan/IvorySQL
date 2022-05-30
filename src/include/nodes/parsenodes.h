@@ -1914,6 +1914,12 @@ typedef struct RawStmt
 	int			stmt_len;		/* length in bytes; 0 means "rest of string" */
 } RawStmt;
 
+typedef struct RownumExpr
+{
+	NodeTag		type;
+	int			location;
+} RownumExpr;
+
 typedef struct PriorClause
 {
 	NodeTag		type;
