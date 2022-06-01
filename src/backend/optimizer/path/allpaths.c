@@ -3514,6 +3514,13 @@ subquery_is_pushdown_safe(Query *subquery, Query *topquery,
 		subquery->hasTargetSRFs)
 		safetyInfo->unsafeVolatile = true;
 
+	if (contain_rownum_Pseudo((Node *) subquery->targetList))
+		return false;
+
+	/* Have rownum in qual, we not to pull up subquery */
+	if (contain_rownum_Pseudo(subquery->jointree->quals))
+		return false;
+
 	/*
 	 * If we're at a leaf query, check for unsafe expressions in its target
 	 * list, and mark any unsafe ones in unsafeColumns[].  (Non-leaf nodes in

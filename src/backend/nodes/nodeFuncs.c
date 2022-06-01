@@ -2569,7 +2569,7 @@ expression_tree_walker(Node *node,
 			}
 			break;
 		case T_RownumExpr:
-			return true;
+			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d",
 				 (int) nodeTag(node));

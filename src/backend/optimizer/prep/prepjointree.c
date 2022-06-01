@@ -1610,8 +1610,8 @@ is_simple_subquery(PlannerInfo *root, Query *subquery, RangeTblEntry *rte,
 		return false;
 
 	/* Have rownum in qual, we not to pull up subquery */
-//	if (contain_rownum_Pseudo(subquery->jointree->quals))
-//		return false;
+	if (contain_rownum_Pseudo(subquery->jointree->quals))
+		return false;
 
 	return true;
 }

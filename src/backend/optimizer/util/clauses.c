@@ -459,35 +459,34 @@ contain_mutable_functions_walker(Node *node, void *context)
 								  context);
 }
 
+static bool
+contain_rownum_functions_checker(Oid func_id, void *context)
+{
+	return (func_id == ROWNUM_FUNCTION);
+}
+
+static bool
+contain_rownum_walker(Node *node, void *context)
+{
+	if (node == NULL)
+		return false;
+
+	if (IsA(node, RownumExpr))
+		return true;
+
+	/* Check for rownum functions in node itself */
+	if (check_functions_in_node(node, contain_rownum_functions_checker,
+								context))
+		return true;
+
+	return expression_tree_walker(node, contain_rownum_walker,
+								  context);
+}
+
 bool
 contain_rownum_Pseudo(Node *quals)
 {
-//	Node	   *quals = ((FromExpr *)jointree)->quals;
-
-	if (!quals)
-		return false;
-
-	if (IsA(quals, OpExpr))
-	{
-		OpExpr	   *expr = (OpExpr *)quals;
-		ListCell	   *cell = NULL;
-
-		foreach(cell, expr->args)
-		{
-			Node	   *node = lfirst(cell);
-
-			if (IsA(node, FuncExpr))
-			{
-				FuncExpr	   *func = (FuncExpr *)node;
-
-				if (func->funcid == ROWNUM_FUNCTION)
-					return true;
-			}
-
-		}
-	}
-
-	return false;
+	return contain_rownum_walker(quals, NULL);
 }
 
 /*****************************************************************************
