@@ -9300,6 +9300,8 @@ get_rule_expr(Node *node, deparse_context *context,
 					case SVFOP_CURRENT_SCHEMA:
 						appendStringInfoString(buf, "CURRENT_SCHEMA");
 						break;
+					case SVFOP_CURRENT_TIME_ZONE:
+						appendStringInfoString(buf, "SESSIONTIMEZONE");
 				}
 			}
 			break;

@@ -2554,6 +2554,11 @@ ExecEvalSQLValueFunction(ExprState *state, ExprEvalStep *op)
 			*op->resvalue = current_schema(fcinfo);
 			*op->resnull = fcinfo->isnull;
 			break;
+		case SVFOP_CURRENT_TIME_ZONE:
+			InitFunctionCallInfoData(*fcinfo, NULL, 0, InvalidOid, NULL, NULL);
+			*op->resvalue = CStringGetDatum(session_timezone);
+			*op->resnull = fcinfo->isnull;
+			break;
 	}
 }
 

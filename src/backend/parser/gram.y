@@ -906,6 +906,7 @@ static void check_pkgname(List *pkgname, char *end_name, core_yyscan_t yyscanner
 	/* IvorySQL new-keyword */
 	AUTHID PACKAGE BODY ROWTYPE_P ELSIF EXCEPTION LOOP WHILE SYS_CONNECT_BY_PATH
 	CONNECT_BY_ROOT CONNECTBY
+	SESSIONTIMEZONE DBTIMEZONE
 
 /*
  * The grammar thinks these are keywords, but they are not in the kwlist.h
@@ -15798,6 +15799,14 @@ func_expr_common_subexpr:
 				{
 					$$ = makeSQLValueFunction(SVFOP_SESSION_USER, -1, @1);
 				}
+			| SESSIONTIMEZONE
+				{
+					$$ = makeSQLValueFunction(SVFOP_CURRENT_TIME_ZONE, -1, @1);
+				}
+			| DBTIMEZONE
+				{
+					$$ = makeSQLValueFunction(SVFOP_CURRENT_TIME_ZONE, -1, @1);
+				}
 			| USER
 				{
 					$$ = makeSQLValueFunction(SVFOP_USER, -1, @1);
@@ -18450,6 +18459,7 @@ reserved_keyword:
 			| CURRENT_TIME
 			| CURRENT_TIMESTAMP
 			| CURRENT_USER
+			| DBTIMEZONE
 			| DEFAULT
 			| DEFERRABLE
 			| DESC
@@ -18490,6 +18500,7 @@ reserved_keyword:
 			| REFERENCES
 			| RETURNING
 			| SELECT
+			| SESSIONTIMEZONE
 			| SESSION_USER
 			| SOME
 			| SYMMETRIC
@@ -18612,6 +18623,7 @@ bare_label_keyword:
 			| CYCLE
 			| DATA_P
 			| DATABASE
+			| DBTIMEZONE
 			| DEALLOCATE
 			| DEC
 			| DECIMAL_P
@@ -18879,6 +18891,7 @@ bare_label_keyword:
 			| SERIALIZABLE
 			| SERVER
 			| SESSION
+			| SESSIONTIMEZONE
 			| SESSION_USER
 			| SET
 			| SETOF
