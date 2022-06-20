@@ -2591,7 +2591,8 @@ LANGUAGE C IMMUTABLE;
 CREATE AGGREGATE oracle.listagg(text) (
   SFUNC=oracle.listagg1_transfn,
   STYPE=internal,
-  FINALFUNC=oracle.listagg_finalfn
+  FINALFUNC=oracle.listagg_finalfn,
+  FINALFUNC_MODIFY=READ_ONLY
 );
 
 /*
@@ -2607,7 +2608,8 @@ CREATE AGGREGATE oracle.wm_concat(text) (
 CREATE AGGREGATE oracle.listagg(text, text) (
   SFUNC=oracle.listagg2_transfn,
   STYPE=internal,
-  FINALFUNC=oracle.listagg_finalfn
+  FINALFUNC=oracle.listagg_finalfn,
+  FINALFUNC_MODIFY=READ_ONLY
 );
 
 CREATE FUNCTION oracle.median4_transfn(internal, real)

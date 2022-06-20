@@ -117,6 +117,13 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 	FuncDetailCode fdresult;
 	char		aggkind = 0;
 	ParseCallbackState pcbstate;
+	bool		islistagg = false;
+
+	if (!strcmp(strVal(llast(funcname)), "listagg"))
+	{
+		fargs = list_delete_last(fargs);
+		islistagg = true;
+	}
 
 	/*
 	 * If there's an aggregate filter, transform it using transformWhereClause
@@ -508,7 +515,7 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 		else
 		{
 			/* Normal aggregate, so it can't have WITHIN GROUP */
-			if (agg_within_group)
+			if (agg_within_group && !islistagg)
 				ereport(ERROR,
 						(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 						 errmsg("%s is not an ordered-set aggregate, so it cannot have WITHIN GROUP",
