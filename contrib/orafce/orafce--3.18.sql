@@ -1348,6 +1348,20 @@ RETURNS timestamptz
 AS 'MODULE_PATHNAME', 'ora_decode'
 LANGUAGE C IMMUTABLE;
 
+CREATE FUNCTION oracle.ora_hash(text)
+RETURNS bigint
+AS 'MODULE_PATHNAME', 'ora_hash'
+LANGUAGE c IMMUTABLE STRICT;
+
+CREATE FUNCTION oracle.ora_hash(text, int)
+RETURNS bigint
+AS 'MODULE_PATHNAME', 'ora_hash'
+LANGUAGE c IMMUTABLE STRICT;
+
+CREATE FUNCTION oracle.ora_hash(text, int, int)
+RETURNS bigint
+AS 'MODULE_PATHNAME', 'ora_hash'
+LANGUAGE c IMMUTABLE STRICT;
 
 CREATE SCHEMA dbms_pipe;
 

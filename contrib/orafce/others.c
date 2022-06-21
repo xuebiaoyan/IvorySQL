@@ -4,6 +4,7 @@
 #include "catalog/pg_collation.h"
 #include "catalog/pg_operator.h"
 #include "catalog/pg_type.h"
+#include "common/hashfn.h"
 #include "fmgr.h"
 #include "lib/stringinfo.h"
 #include "nodes/nodeFuncs.h"
@@ -294,6 +295,48 @@ ora_nlssort(PG_FUNCTION_ARGS)
 
 	PG_RETURN_BYTEA_P(result);
 }
+
+PG_FUNCTION_INFO_V1(ora_hash);
+Datum
+ora_hash(PG_FUNCTION_ARGS)
+{
+	text	*exp = PG_GETARG_TEXT_P(0);
+	int32	max_bucket,
+			seed;
+	uint64	result;
+
+	if (PG_NARGS() == 1)
+	{
+		/* Hash bucket and seed use default value */
+		max_bucket = PG_INT32_MAX;
+		seed = 0;
+	}
+	else if (PG_NARGS() == 2)
+	{
+		/* Hash bucket use specify value, seed use default value */
+		max_bucket = PG_GETARG_INT32(1);
+		seed = 0;
+	}
+	else
+	{
+		/* Both use specify value */
+		max_bucket = PG_GETARG_INT32(1);
+		seed = PG_GETARG_INT32(2);
+	}
+
+	if (seed < 0)
+		elog(ERROR, "out range~");
+
+	result = hash_bytes_extended((unsigned char *)VARDATA_ANY(exp),
+								  VARSIZE_ANY_EXHDR(exp),
+								  seed);
+
+	/* Value less than max buckte */
+	result %= max_bucket;
+
+	return UInt64GetDatum(result);
+}
+
 
 PG_FUNCTION_INFO_V1(ora_decode);
 
