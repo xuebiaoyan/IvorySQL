@@ -61,4 +61,20 @@ extern Datum WinGetFuncArgInFrame(WindowObject winobj, int argno,
 extern Datum WinGetFuncArgCurrent(WindowObject winobj, int argno,
 								  bool *isnull);
 
+extern ignore_respect_nulls WinGetIRNulls(WindowObject winobj);
+
+extern void WinGetNullNum(WindowObject winobj, bool forward, int32 offset,
+						int seektype, int *null_num, int *currentindex, bool positive);
+
+extern void WinResetTupleIndex(WindowObject winobj, int currentindex);
+
+extern Datum WinGetValueIgnoreNull(WindowObject winobj, bool forward, int32 offset,
+					int seektype, int null_num, bool *isout, bool *isnull, bool positive);
+
+extern void WinGetMarkSeekpos(WindowObject winobj, int64 *markpos, int64 *seekpos);
+
+extern void WinSetMarkSeekpos(WindowObject winobj, int64 markpos, int64 seekpos);
+
+extern void WinGetTupleIndex(WindowObject winobj, int *currentindex);
+
 #endif							/* WINDOWAPI_H */

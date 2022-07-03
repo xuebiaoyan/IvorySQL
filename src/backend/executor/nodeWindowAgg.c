@@ -2258,9 +2258,16 @@ ExecWindowAgg(PlanState *pstate)
 			update_grouptailpos(winstate);
 
 		/*
-		 * Truncate any no-longer-needed rows from the tuplestore.
+		 * If is ignore nulls for windows function, it means will move BACKWARD
+		 * or FORWARD to fetch tuple again, so can not to trim.
 		 */
-		tuplestore_trim(winstate->buffer);
+		if (winstate->perfunc->wfunc->ir_nulls != IGNORE_NULLS)
+		{
+			/*
+			 * Truncate any no-longer-needed rows from the tuplestore.
+			 */
+			tuplestore_trim(winstate->buffer);
+		}
 
 		/*
 		 * Form and return a projection tuple using the windowfunc results and
@@ -2458,6 +2465,8 @@ ExecInitWindowAgg(WindowAgg *node, EState *estate, int eflags)
 	winstate->temp_slot_1 = ExecInitExtraTupleSlot(estate, scanDesc,
 												   &TTSOpsMinimalTuple);
 	winstate->temp_slot_2 = ExecInitExtraTupleSlot(estate, scanDesc,
+												   &TTSOpsMinimalTuple);
+	winstate->temp_slot_3 = ExecInitExtraTupleSlot(estate, scanDesc,
 												   &TTSOpsMinimalTuple);
 
 	/*
@@ -2668,6 +2677,7 @@ ExecEndWindowAgg(WindowAggState *node)
 	ExecClearTuple(node->agg_row_slot);
 	ExecClearTuple(node->temp_slot_1);
 	ExecClearTuple(node->temp_slot_2);
+	ExecClearTuple(node->temp_slot_3);
 	if (node->framehead_slot)
 		ExecClearTuple(node->framehead_slot);
 	if (node->frametail_slot)
@@ -2717,6 +2727,7 @@ ExecReScanWindowAgg(WindowAggState *node)
 	ExecClearTuple(node->agg_row_slot);
 	ExecClearTuple(node->temp_slot_1);
 	ExecClearTuple(node->temp_slot_2);
+	ExecClearTuple(node->temp_slot_3);
 	if (node->framehead_slot)
 		ExecClearTuple(node->framehead_slot);
 	if (node->frametail_slot)
@@ -3586,4 +3597,206 @@ WinGetFuncArgCurrent(WindowObject winobj, int argno, bool *isnull)
 	econtext->ecxt_outertuple = winstate->ss.ss_ScanTupleSlot;
 	return ExecEvalExpr((ExprState *) list_nth(winobj->argstates, argno),
 						econtext, isnull);
+}
+
+ignore_respect_nulls
+WinGetIRNulls(WindowObject winobj)
+{
+	WindowAggState *winstate;
+
+	Assert(WindowObjectIsValid(winobj));
+
+	winstate = winobj->winstate;
+
+	return winstate->perfunc->wfunc->ir_nulls;
+}
+
+void
+WinGetNullNum(WindowObject winobj, bool forward, int32 offset,
+		int seektype, int *null_num, int *currentindex, bool positive)
+{
+	WindowAggState *winstate;
+	ExprContext *econtext;
+	TupleTableSlot *slot;
+	bool isnull;
+	MemoryContext oldcontext;
+
+	Assert(WindowObjectIsValid(winobj));
+
+	winstate = winobj->winstate;
+	*currentindex = GetCurrentTupleIndex(winstate->buffer);
+
+	if (offset == 0)
+		return;
+
+	econtext = winstate->ss.ps.ps_ExprContext;
+	slot = winstate->temp_slot_2;
+
+	/* Temp slot to store have fetch tuple */
+	ExecCopySlot(winstate->temp_slot_3, econtext->ecxt_outertuple);
+
+	/* Loop until current row */
+	while (offset)
+	{
+		oldcontext = MemoryContextSwitchTo(winstate->ss.ps.ps_ExprContext->ecxt_per_query_memory);
+
+		if ((forward && positive) || (!forward && !positive))
+		{
+			/* Back to get tuple */
+			if (!tuplestore_gettupleslot(winstate->buffer, false, true, slot))
+				elog(ERROR, "unexpected end of tuplestore");
+		}
+		else
+		{
+			/* Forward to get tuple */
+			if (!tuplestore_gettupleslot(winstate->buffer, true, true, slot))
+				elog(ERROR, "unexpected end of tuplestore");
+		}
+
+		MemoryContextSwitchTo(oldcontext);
+
+		econtext->ecxt_outertuple = slot;
+		(void)ExecEvalExpr((ExprState *) list_nth(winobj->argstates, 0),
+					econtext, &isnull);
+
+		if (isnull)
+			(*null_num)++;
+
+		if (positive)
+			offset--;
+		else
+			offset++;
+
+		ExecClearTuple(slot);
+	}
+
+	/* Reset value */
+	ExecCopySlot(econtext->ecxt_outertuple, winstate->temp_slot_3);
+	ResetTupleIndex(winstate->buffer, *currentindex);
+	ExecClearTuple(winstate->temp_slot_3);
+}
+
+Datum
+WinGetValueIgnoreNull(WindowObject winobj, bool forward, int32 offset,
+			int seektype, int null_num, bool *isout, bool *isnull, bool positive)
+{
+	WindowAggState *winstate;
+	ExprContext *econtext;
+	TupleTableSlot *slot;
+	int64 abs_pos;
+	MemoryContext oldcontext;
+	int32 relpos;
+	Datum result;
+
+	Assert(WindowObjectIsValid(winobj));
+
+	winstate = winobj->winstate;
+	econtext = winstate->ss.ps.ps_ExprContext;
+	slot = winstate->temp_slot_2;
+
+	/* Loop until current row */
+	while (null_num)
+	{
+		if (positive)
+			offset++;
+		else
+			offset--;
+
+		relpos = forward ? offset : -offset;
+
+		switch (seektype)
+		{
+			case WINDOW_SEEK_CURRENT:
+				abs_pos = winstate->currentpos + relpos;
+				break;
+			default:
+				elog(ERROR, "unrecognized window seek type: %d", seektype);
+				abs_pos = 0;		/* keep compiler quiet */
+				break;
+		}
+
+		if (abs_pos < 0)
+		{
+			*isout = true;
+			*isnull = true;
+			break;
+		}
+
+		/* If necessary, fetch the tuple into the spool */
+		spool_tuples(winstate, abs_pos);
+
+		if (abs(abs_pos) >= winstate->spooled_rows)
+		{
+			*isout = true;
+			*isnull = true;
+			break;
+		}
+
+		oldcontext = MemoryContextSwitchTo(winstate->ss.ps.ps_ExprContext->ecxt_per_query_memory);
+
+		if ((!forward && positive) || (forward && !positive))
+		{
+			/* Back to get tuple */
+			if (!tuplestore_gettupleslot(winstate->buffer, false, true, slot))
+				elog(ERROR, "unexpected end of tuplestore");
+		}
+		else
+		{
+			/* Forward to get tuple */
+			if (!tuplestore_gettupleslot(winstate->buffer, true, true, slot))
+				elog(ERROR, "unexpected end of tuplestore");
+		}
+
+		MemoryContextSwitchTo(oldcontext);
+
+		econtext->ecxt_outertuple = slot;
+		result = ExecEvalExpr((ExprState *) list_nth(winobj->argstates, 0),
+					econtext, isnull);
+
+		if (!(*isnull))
+			null_num--;
+
+	}
+
+	return result;
+}
+
+void
+WinResetTupleIndex(WindowObject winobj, int currentindex)
+{
+	WindowAggState *winstate;
+
+	Assert(WindowObjectIsValid(winobj));
+
+	winstate = winobj->winstate;
+	ResetTupleIndex(winstate->buffer, currentindex);
+}
+
+void
+WinGetMarkSeekpos(WindowObject winobj, int64 *markpos, int64 *seekpos)
+{
+	Assert(WindowObjectIsValid(winobj));
+
+	*markpos = winobj->markpos;
+	*seekpos = winobj->seekpos;
+}
+
+void
+WinSetMarkSeekpos(WindowObject winobj, int64 markpos, int64 seekpos)
+{
+	Assert(WindowObjectIsValid(winobj));
+
+	winobj->markpos = markpos;
+	winobj->seekpos = seekpos;
+}
+
+void
+WinGetTupleIndex(WindowObject winobj, int *currentindex)
+{
+	WindowAggState *winstate;
+
+	Assert(WindowObjectIsValid(winobj));
+
+	winstate = winobj->winstate;
+	*currentindex = GetCurrentTupleIndex(winstate->buffer);
 }

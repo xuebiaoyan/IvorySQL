@@ -355,6 +355,10 @@ leadlag_common(FunctionCallInfo fcinfo,
 	Datum		result;
 	bool		isnull;
 	bool		isout;
+	ignore_respect_nulls ir_nulls;
+	int			currentindex;
+	int			null_num = 0;
+	bool		positive;
 
 	if (withoffset)
 	{
@@ -383,6 +387,80 @@ leadlag_common(FunctionCallInfo fcinfo,
 		 */
 		if (withdefault)
 			result = WinGetFuncArgCurrent(winobj, 2, &isnull);
+	}
+	else
+	{
+		ir_nulls = WinGetIRNulls(winobj);
+
+		/*
+		 * If is ignore nulls, we will fetch rows to find null until
+		 * current row, go on to get value replace null.
+		 */
+		if (ir_nulls == IGNORE_NULLS)
+		{
+			if (offset == 0)
+			{
+				if (isnull)
+				{
+					/*
+					 * target row is out of the partition; supply default value if
+					 * provided.  otherwise it'll stay NULL
+					 */
+					if (withdefault)
+						result = WinGetFuncArgCurrent(winobj, 2, &isnull);
+				}
+			}
+			else
+			{
+				positive = offset > 0 ? true : false;
+
+				if (isnull)
+					null_num++;
+
+				/* Ignore current null */
+				if (positive)
+					offset--;
+				else
+					offset++;
+
+				/* Get total null number */
+				WinGetNullNum(winobj,
+							  forward,
+							  offset,
+							  WINDOW_SEEK_CURRENT,
+							  &null_num,
+							  &currentindex,
+							  positive);
+
+				if (null_num > 0)
+				{
+					if (positive)
+						offset++;
+					else
+						offset--;
+
+					result = WinGetValueIgnoreNull(winobj,
+													forward,
+													offset,
+													WINDOW_SEEK_CURRENT,
+													null_num,
+													&isout,
+													&isnull,
+													positive);
+					WinResetTupleIndex(winobj, currentindex);
+
+					if (isout)
+					{
+						/*
+						 * target row is out of the partition; supply default value if
+						 * provided.  otherwise it'll stay NULL
+						 */
+						if (withdefault)
+							result = WinGetFuncArgCurrent(winobj, 2, &isnull);
+					}
+				}
+			}
+		}
 	}
 
 	if (isnull)
@@ -472,10 +550,37 @@ window_first_value(PG_FUNCTION_ARGS)
 	WindowObject winobj = PG_WINDOW_OBJECT();
 	Datum		result;
 	bool		isnull;
+	int64		markpos,
+				seekpos;
+	bool		isout;
+	ignore_respect_nulls ir_nulls;
+	int			pos = 0;
 
 	result = WinGetFuncArgInFrame(winobj, 0,
 								  0, WINDOW_SEEK_HEAD, true,
 								  &isnull, NULL);
+
+	if (isnull)
+	{
+		ir_nulls = WinGetIRNulls(winobj);
+		if (ir_nulls == IGNORE_NULLS)
+		{
+			WinGetMarkSeekpos(winobj, &markpos, &seekpos);
+			for (;;)
+			{
+				pos++;
+				result = WinGetFuncArgInFrame(winobj, 0,
+											  pos, WINDOW_SEEK_HEAD, true,
+											  &isnull, &isout);
+				if (!isnull || isout)
+				{
+					WinSetMarkSeekpos(winobj, markpos, seekpos);
+					break;
+				}
+			}
+		}
+	}
+
 	if (isnull)
 		PG_RETURN_NULL();
 
@@ -493,10 +598,42 @@ window_last_value(PG_FUNCTION_ARGS)
 	WindowObject winobj = PG_WINDOW_OBJECT();
 	Datum		result;
 	bool		isnull;
+	int64		markpos,
+				seekpos;
+	bool		isout;
+	ignore_respect_nulls ir_nulls;
+	int			pos = 0;
+	int			currentindex = 0;
 
 	result = WinGetFuncArgInFrame(winobj, 0,
 								  0, WINDOW_SEEK_TAIL, true,
 								  &isnull, NULL);
+
+	if (isnull)
+	{
+		ir_nulls = WinGetIRNulls(winobj);
+		if (ir_nulls == IGNORE_NULLS)
+		{
+			WinGetMarkSeekpos(winobj, &markpos, &seekpos);
+			WinGetTupleIndex(winobj, &currentindex);
+			for (;;)
+			{
+				pos--;
+				WinSetMarkSeekpos(winobj, -1, -1);
+				WinResetTupleIndex(winobj, 0);
+				result = WinGetFuncArgInFrame(winobj, 0,
+											  pos, WINDOW_SEEK_TAIL, true,
+											  &isnull, &isout);
+				if (!isnull || isout)
+				{
+					WinResetTupleIndex(winobj, currentindex);
+					WinSetMarkSeekpos(winobj, markpos, seekpos);
+					break;
+				}
+			}
+		}
+	}
+
 	if (isnull)
 		PG_RETURN_NULL();
 

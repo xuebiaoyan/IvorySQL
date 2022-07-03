@@ -291,6 +291,7 @@ static void check_pkgname(List *pkgname, char *end_name, core_yyscan_t yyscanner
 	ConnectBy			*connectBy;
 	StartWith			*startWith;
 	JsonBehavior		*jsbehavior;
+	ignore_respect_nulls irnulls;
 	struct
 	{
 		JsonBehavior		*on_empty;
@@ -554,7 +555,7 @@ static void check_pkgname(List *pkgname, char *end_name, core_yyscan_t yyscanner
 %type <list>	rowsfrom_item rowsfrom_list opt_col_def_list
 %type <boolean> opt_ordinality
 %type <list>	ExclusionConstraintList ExclusionConstraintElem
-%type <list>	func_arg_list func_arg_list_opt
+%type <list>	func_arg_list func_arg_list_opt opt_func_arg_list
 %type <node>	func_arg_expr
 %type <list>	row explicit_row implicit_row type_list array_expr_list
 %type <node>	case_expr case_arg when_clause case_default
@@ -681,6 +682,7 @@ static void check_pkgname(List *pkgname, char *end_name, core_yyscan_t yyscanner
 %type <boolean> invoker_rights_clause
 %type <typnam>	package_var_type
 %type <boolean> return_or_not
+%type <irnulls> ir_nulls
 
 %type <hierarClause>	hierarchical_query_clause
 %type <startWith>	start_with_clause opt_start_with_clause
@@ -906,6 +908,7 @@ static void check_pkgname(List *pkgname, char *end_name, core_yyscan_t yyscanner
 	/* IvorySQL new-keyword */
 	AUTHID PACKAGE BODY ROWTYPE_P ELSIF EXCEPTION LOOP WHILE SYS_CONNECT_BY_PATH
 	CONNECT_BY_ROOT CONNECTBY
+	IGNORE RESPECT
 
 /*
  * The grammar thinks these are keywords, but they are not in the kwlist.h
@@ -1001,6 +1004,7 @@ static void check_pkgname(List *pkgname, char *end_name, core_yyscan_t yyscanner
 %nonassoc	json_table_column
 %nonassoc	NESTED
 %left		PATH
+%nonassoc	IGNORE RESPECT
 
 %nonassoc	empty_json_unique
 %left		WITHOUT WITH_LA_UNIQUE
@@ -15610,6 +15614,32 @@ func_application: func_name '(' ')'
 					n->agg_order = $4;
 					$$ = (Node *)n;
 				}
+			| func_name '(' func_arg_list opt_sort_clause ')' ir_nulls
+				{
+					FuncCall *n = makeFuncCall($1, $3,
+											   COERCE_EXPLICIT_CALL,
+											   @1);
+					n->agg_order = $4;
+					n->ir_nulls = $6;
+					$$ = (Node *)n;
+				}
+			| func_name '(' func_arg_expr ir_nulls opt_func_arg_list opt_sort_clause ')'
+				{
+					FuncCall *n;
+					List *args;
+
+					if ($5)
+						args = lcons($3, $5);
+					else
+						args = list_make1($3);
+
+					n = makeFuncCall($1, args,
+									 COERCE_EXPLICIT_CALL,
+									 @1);
+					n->agg_order = $6;
+					n->ir_nulls = $4;
+					$$ = (Node *)n;
+				}
 			| func_name '(' VARIADIC func_arg_expr opt_sort_clause ')'
 				{
 					FuncCall *n = makeFuncCall($1, list_make1($4),
@@ -15669,6 +15699,10 @@ func_application: func_name '(' ')'
 				}
 		;
 
+ir_nulls:
+			IGNORE NULLS_P		{ $$ = IGNORE_NULLS; }
+			| RESPECT NULLS_P	{ $$ = RESPECT_NULLS; }
+		;
 
 /*
  * func_expr and its cousin func_expr_windowless are split out from c_expr just
@@ -16453,6 +16487,10 @@ expr_list:	a_expr
 				{
 					$$ = lappend($1, $3);
 				}
+		;
+
+opt_func_arg_list: ',' func_arg_list		{ $$ = $2; }
+			| /* EMPTY */					{ $$ = NULL; }
 		;
 
 /* function arguments can have names */
@@ -18088,6 +18126,7 @@ unreserved_keyword:
 			| HOUR_P
 			| IDENTITY_P
 			| IF_P
+			| IGNORE
 			| IMMEDIATE
 			| IMMUTABLE
 			| IMPLICIT_P
@@ -18207,6 +18246,7 @@ unreserved_keyword:
 			| REPLACE
 			| REPLICA
 			| RESET
+			| RESPECT
 			| RESTART
 			| RESTRICT
 			| RETURN

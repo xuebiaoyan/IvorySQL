@@ -1550,3 +1550,19 @@ readtup_heap(Tuplestorestate *state, unsigned int len)
 	}
 	return (void *) tuple;
 }
+
+int
+GetCurrentTupleIndex(Tuplestorestate *state)
+{
+	TSReadPointer *readptr = &state->readptrs[state->activeptr];
+
+	return readptr->current;
+}
+
+void
+ResetTupleIndex(Tuplestorestate *state, int current)
+{
+	TSReadPointer *readptr = &state->readptrs[state->activeptr];
+
+	readptr->current = current;
+}

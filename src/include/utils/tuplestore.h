@@ -88,4 +88,9 @@ extern void tuplestore_clear(Tuplestorestate *state);
 
 extern void tuplestore_end(Tuplestorestate *state);
 
+extern int GetCurrentTupleIndex(Tuplestorestate *state);
+
+extern void ResetTupleIndex(Tuplestorestate *state, int current);
+
+
 #endif							/* TUPLESTORE_H */

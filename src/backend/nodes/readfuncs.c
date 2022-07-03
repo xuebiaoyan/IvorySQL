@@ -740,6 +740,7 @@ _readWindowFunc(void)
 	READ_UINT_FIELD(winref);
 	READ_BOOL_FIELD(winstar);
 	READ_BOOL_FIELD(winagg);
+	READ_ENUM_FIELD(ir_nulls, ignore_respect_nulls);
 	READ_LOCATION_FIELD(location);
 
 	READ_DONE();

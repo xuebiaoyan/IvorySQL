@@ -756,6 +756,13 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 		funcexpr->args = fargs;
 		funcexpr->location = location;
 
+		if (fn->ir_nulls == RESPECT_NULLS ||
+			fn->ir_nulls == IGNORE_NULLS)
+			ereport(ERROR,
+					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
+					 errmsg("can not use IGNORE/RESPECT NULLS at here"),
+					 parser_errposition(pstate, location)));
+
 		retval = (Node *) funcexpr;
 	}
 	else if (fdresult == FUNCDETAIL_AGGREGATE && !over)
@@ -812,6 +819,13 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 					 errmsg("aggregates cannot use named arguments"),
 					 parser_errposition(pstate, location)));
 
+		if (fn->ir_nulls == RESPECT_NULLS ||
+			fn->ir_nulls == IGNORE_NULLS)
+			ereport(ERROR,
+					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
+					 errmsg("can not use IGNORE/RESPECT NULLS at here"),
+					 parser_errposition(pstate, location)));
+
 		/* parse_agg.c does additional aggregate-specific processing */
 		transformAggregateCall(pstate, aggref, fargs, agg_order, agg_distinct);
 
@@ -833,6 +847,7 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 		wfunc->winstar = agg_star;
 		wfunc->winagg = (fdresult == FUNCDETAIL_AGGREGATE);
 		wfunc->aggfilter = agg_filter;
+		wfunc->ir_nulls = fn->ir_nulls;
 		wfunc->location = location;
 
 		/*

@@ -43,6 +43,14 @@ typedef struct Alias
 	List	   *colnames;		/* optional list of column aliases */
 } Alias;
 
+typedef enum ignore_respect_nulls
+{
+	NONE_NULLS,					/* default value */
+	RESPECT_NULLS,				/* respect nulls for windows function */
+	IGNORE_NULLS				/* ignore nulls for windows function */
+} ignore_respect_nulls;
+
+
 /* What to do at commit time for temporary relations */
 typedef enum OnCommitAction
 {
@@ -408,6 +416,7 @@ typedef struct WindowFunc
 	Index		winref;			/* index of associated WindowClause */
 	bool		winstar;		/* true if argument list was really '*' */
 	bool		winagg;			/* is function a simple aggregate? */
+	ignore_respect_nulls ir_nulls;
 	int			location;		/* token location, or -1 if unknown */
 } WindowFunc;
 

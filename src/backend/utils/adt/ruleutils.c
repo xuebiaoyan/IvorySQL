@@ -10383,7 +10383,12 @@ get_windowfunc_expr_helper(WindowFunc *wfunc, deparse_context *context,
 		get_rule_expr((Node *) wfunc->aggfilter, context, false);
 	}
 
-	appendStringInfoString(buf, ") OVER ");
+	if (wfunc->ir_nulls == IGNORE_NULLS)
+		appendStringInfoString(buf, ") IGNORE NULLS OVER ");
+	else if (wfunc->ir_nulls == RESPECT_NULLS)
+		appendStringInfoString(buf, ") RESPECT NULLS OVER ");
+	else
+		appendStringInfoString(buf, ") OVER ");
 
 	foreach(l, context->windowClause)
 	{
